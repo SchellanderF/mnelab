@@ -101,8 +101,9 @@ class ArtifactDetectionDialog(QDialog):
                 spin_box = QDoubleSpinBox()
                 spin_box.setRange(-1e6, 1e6)
                 spin_box.setValue(default)
-                spin_box.setDecimals(2)
+                spin_box.setDecimals(1)
                 spin_box.setSuffix(f" {unit}")
+                spin_box.setAlignment(Qt.AlignmentFlag.AlignRight)
 
                 # single parameter - no label
                 if display_name is None:
@@ -112,7 +113,9 @@ class ArtifactDetectionDialog(QDialog):
                     param_form.addRow(f"{display_name}:", spin_box)
 
                 inputs[param_name] = spin_box
-                spin_box.valueChanged.connect(self.schedule_detection)
+                spin_box.valueChanged.connect(
+                    lambda _, m=method: self.schedule_detection(m)
+                )
 
             grid.addWidget(checkbox, idx, 0, Qt.AlignmentFlag.AlignTop)
             grid.addWidget(param_container, idx, 1)
@@ -120,12 +123,12 @@ class ArtifactDetectionDialog(QDialog):
             # disable parameter inputs by default
             param_container.setEnabled(False)
             checkbox.toggled.connect(param_container.setEnabled)
-            checkbox.toggled.connect(self.schedule_detection)
+            checkbox.toggled.connect(lambda _, m=method: self.schedule_detection(m))
 
             self.method_widgets[method] = {"checkbox": checkbox, "inputs": inputs}
 
-        self.info_label = QLabel("Please select at least one detection method")
-        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.info_label = QLabel("")
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self.info_label)
 
         button_layout = QHBoxLayout()
@@ -155,7 +158,7 @@ class ArtifactDetectionDialog(QDialog):
                 }
         return results
 
-    def schedule_detection(self):
+    def schedule_detection(self, changed_method=None):
         """Schedule detection run with a short delay."""
         selected = self.get_selected_methods()
 
@@ -163,13 +166,15 @@ class ArtifactDetectionDialog(QDialog):
         if not selected:
             self.detection_results = {}
             self.detection_done = False
-            self.info_label.setText("Please select at least one detection method")
+            self.info_label.setText("")
             self.preview_button.setEnabled(False)
             self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
             self.detection_timer.stop()
             return
 
         self.info_label.setText("Detecting artifacts...")
+
+        self.changed_method = changed_method
 
         # 500ms debounce
         self.detection_timer.stop()
@@ -178,7 +183,7 @@ class ArtifactDetectionDialog(QDialog):
     def update_info_label(self):
         """Update info label and OK button tooltip based on detection state."""
         if not self.detection_done:
-            self.info_label.setText("Please select method and press Detect")
+            self.info_label.setText("")
             return
 
         n_total = len(self.detection_results)
@@ -190,13 +195,13 @@ class ArtifactDetectionDialog(QDialog):
 
         # update label
         self.info_label.setText(
-            f"When pressing OK, {n_rejected} out of {n_total} epochs will be dropped"
+            f"When pressing OK, {n_rejected} out of {n_total} epochs will be dropped."
         )
 
         # update tooltip
         ok_button = self.button_box.button(QDialogButtonBox.Ok)
         ok_button.setToolTip(
-            f"Apply rejection (will drop {n_rejected} out of {n_total} epochs)"
+            f"Apply rejection (will drop {n_rejected} out of {n_total} epochs)."
         )
 
     def run_detection(self):
@@ -204,33 +209,42 @@ class ArtifactDetectionDialog(QDialog):
         selected = self.get_selected_methods()
         n_epochs = len(self.data)
 
-        self.detection_results = {i: {} for i in range(n_epochs)}
+        # Initialize if first run
+        if not self.detection_results:
+            self.detection_results = {i: {} for i in range(n_epochs)}
 
-        # run each selected detection method
-        for method, params in selected.items():
+        # Determine which methods to run
+        if self.changed_method in selected:
+            methods_to_run = {self.changed_method: selected[self.changed_method]}
+        else:
+            methods_to_run = {}
+            # cleanup results for deselected method
+            for idx in range(n_epochs):
+                if self.changed_method in self.detection_results[idx]:
+                    del self.detection_results[idx][self.changed_method]
+
+        # detection for relevant methods
+        for method, params in methods_to_run.items():
             detection_func = self.detection_methods[method]["function"]
             bad_epochs = detection_func(self.data, **params)
 
-            # store results
             for idx in range(n_epochs):
                 self.detection_results[idx][method] = bool(bad_epochs[idx])
 
         # OR logic across all methods
         method_names = list(selected.keys())
         for idx in range(n_epochs):
-            if method_names:
-                self.detection_results[idx]["reject"] = any(
-                    self.detection_results[idx].get(method, False)
-                    for method in method_names
-                )
-            else:
-                self.detection_results[idx]["reject"] = False
+            self.detection_results[idx]["reject"] = any(
+                self.detection_results[idx].get(method, False)
+                for method in method_names
+            )
 
         # update UI state
         self.detection_done = True
         self.update_info_label()
         self.preview_button.setEnabled(True)
         self.button_box.button(QDialogButtonBox.Ok).setEnabled(True)
+        self.changed_method = None
 
     def show_preview_table(self):
         """Show preview table dialog."""
@@ -324,15 +338,14 @@ class ArtifactPreviewTable(QDialog):
             # method columns
             for col_name in method_cols:
                 bad_epochs = results.get(col_name, False)
-                label = "✘" if bad_epochs else "✔"
+                label = "✔" if bad_epochs else ""
                 item = QStandardItem(label)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if bad_epochs:
                     item.setBackground(QColor("#FFF0F0"))
                     item.setForeground(QColor("#800000"))
                 else:
-                    item.setBackground(QColor("#F0FFF0"))
-                    item.setForeground(QColor("#008000"))
+                    item.setBackground(QColor("#FFFFFF"))
 
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 item.setData(int(bad_epochs), Qt.UserRole)
@@ -495,6 +508,9 @@ class EpochVisualization(QDialog):
             # Matplotlib-Backend
             self.canvas = FigureCanvas(self.fig)
             layout.addWidget(self.canvas)
+
+            self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            self.canvas.setFocus()
 
     def closeEvent(self, event):
         if hasattr(self.fig, "mne") and hasattr(self.fig.mne, "bad_epochs"):
