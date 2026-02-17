@@ -81,8 +81,8 @@ class ArtifactDetectionDialog(QDialog):
         grid.setVerticalSpacing(15)
         layout.addLayout(grid)
 
-        grid.addWidget(QLabel("Method"), 0, 0)
-        grid.addWidget(QLabel("Parameters"), 0, 1)
+        grid.addWidget(QLabel("<b>Method</b>"), 0, 0)
+        grid.addWidget(QLabel("<b>Parameters</b>"), 0, 1)
 
         # dynamically create UI elements for each detection method
         for idx, (method, details) in enumerate(
@@ -130,13 +130,15 @@ class ArtifactDetectionDialog(QDialog):
 
             self.method_widgets[method] = {"checkbox": checkbox, "inputs": inputs}
 
+        layout.addSpacing(3)
         self.info_label = QLabel("")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         metrics = self.info_label.fontMetrics()
-        max_text = "When pressing OK, 0000 out of 0000 epochs will be dropped."
+        max_text = "When pressing OK, 0000/0000 epochs will be dropped."
         required_width = metrics.horizontalAdvance(max_text)
         self.info_label.setFixedWidth(required_width)
         layout.addWidget(self.info_label)
+        layout.addSpacing(3)
 
         button_layout = QHBoxLayout()
 
@@ -202,13 +204,13 @@ class ArtifactDetectionDialog(QDialog):
 
         # update label
         self.info_label.setText(
-            f"When pressing OK, {n_rejected} out of {n_total} epochs will be dropped."
+            f"<i>When pressing OK, {n_rejected}/{n_total} epochs will be dropped.</i>"
         )
 
         # update tooltip
         ok_button = self.button_box.button(QDialogButtonBox.Ok)
         ok_button.setToolTip(
-            f"Apply rejection (will drop {n_rejected} out of {n_total} epochs)."
+            f"Apply rejection (will drop {n_rejected}/{n_total} epochs)."
         )
 
     def run_detection(self):
@@ -295,7 +297,7 @@ class ArtifactDetectionDialog(QDialog):
 
         code_lines.append("bad_epochs_auto = np.where(bad_epochs_mask)[0].tolist()")
 
-        # manuel detection
+        # manual detection
         auto_rejected = set()
         for idx, results in self.detection_results.items():
             if any(results.get(method, False) for method in selected_methods.keys()):
@@ -458,12 +460,9 @@ class ArtifactPreviewTable(QDialog):
                 == Qt.CheckState.Checked
             ):
                 n_rejected += 1
-        n_accepted = n_total - n_rejected
 
         self.info_label.setText(
-            f"Total: {n_total} epochs  |  "
-            f"Accepted: {n_accepted}  |  "
-            f"Rejected: {n_rejected}"
+            f"<i>{n_rejected}/{n_total} epochs marked for rejection.</i>"
         )
 
     def show_epoch_visualization(self):
