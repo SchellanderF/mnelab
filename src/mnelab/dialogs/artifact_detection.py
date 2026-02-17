@@ -261,6 +261,64 @@ class ArtifactDetectionDialog(QDialog):
             if results.get("reject", False)
         ]
 
+    def get_history_code(self):
+        """Generate code snippet to reproduce the artifact detection."""
+        selected_methods = self.get_selected_methods()
+        code_lines = ["\n# artifact detection"]
+        bad_epochs_vars = []
+
+        # code for selected methods
+        for method, params in selected_methods.items():
+            var_name = f"bad_epochs_{method.lower()}"
+            func_name = self.detection_methods[method]["function"].__name__
+            if params:
+                param_str = ", ".join(
+                    f"{name}={value}" for name, value in params.items()
+                )
+                code_lines.append(f"{var_name} = {func_name}(data, {param_str})")
+            else:
+                code_lines.append(f"{var_name} = {func_name}(data)")
+            bad_epochs_vars.append(var_name)
+
+        if len(bad_epochs_vars) == 1:
+            code_lines.append(f"bad_epochs_mask = {bad_epochs_vars[0]}")
+        else:
+            code_lines.append(f"bad_epochs_mask = {' | '.join(bad_epochs_vars)}")
+
+        code_lines.append("bad_epochs_auto = np.where(bad_epochs_mask)[0].tolist()")
+
+        # manuel detection
+        auto_rejected = set()
+        for idx, results in self.detection_results.items():
+            if any(results.get(method, False) for method in selected_methods.keys()):
+                auto_rejected.add(idx)
+
+        final_rejects = set(self.get_bad_epochs())
+
+        manual_added = list(final_rejects - auto_rejected)
+        manual_removed = list(auto_rejected - final_rejects)
+
+        if manual_added or manual_removed:
+            code_lines.append("\n# manual modifications")
+            code_lines.append("bad_epochs_final = bad_epochs_auto.copy()")
+
+            if manual_added:
+                code_lines.append(f"bad_epochs_final.extend({manual_added})")
+            if manual_removed:
+                code_lines.append(
+                    "bad_epochs_final = "
+                    f"[idx for idx in bad_epochs_final if idx not in {manual_removed}]"
+                )
+
+            code_lines.append(
+                "data.drop(bad_epochs_final, reason='ARTIFACT_DETECTION')"
+            )
+        else:
+            # no manual changes
+            code_lines.append("data.drop(bad_epochs_auto, reason='ARTIFACT_DETECTION')")
+
+        return "\n".join(code_lines)
+
 
 class ArtifactPreviewTable(QDialog):
     def __init__(self, parent, data, detection_results):

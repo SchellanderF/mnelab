@@ -57,6 +57,12 @@ class Model:
             "from mnelab.io import read_raw",
             "from mnelab.utils import annotations_between_events, run_iclabel",
             "import numpy as np",
+            "from mnelab.utils.artifact_detection import ("
+            "detect_extreme_values,"
+            "detect_kurtosis,"
+            "detect_peak_to_peak,"
+            "detect_with_autoreject,"
+            ")"
             "",
             "datasets = []",
         ]
@@ -650,7 +656,6 @@ class Model:
     def drop_detected_artifacts(self, indices):
         self.current["data"].drop(indices, reason="ARTIFACT_DETECTION")
         self.current["name"] += " (dropped detected epochs)"
-        # self.history.append(f"data.drop({indices}, reason='ARTIFACT_DETECTION')")
 
     @data_changed
     def convert_od(self):

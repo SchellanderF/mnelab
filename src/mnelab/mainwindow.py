@@ -1320,6 +1320,7 @@ class MainWindow(QMainWindow):
             self.auto_duplicate()
             self.model.drop_detected_artifacts(bad_epochs)
             self.data_changed()
+            self.model.history.append(dialog.get_history_code())
 
     def convert_od(self):
         """Convert to optical density."""
