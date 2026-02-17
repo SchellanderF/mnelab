@@ -7,6 +7,9 @@
 - Force epoch indexes to start at 0 and be consecutive instead of using the original event indexes ([#555](https://github.com/cbrnr/mnelab/pull/555) by [Clemens Brunner](https://github.com/cbrnr))
 - Make XDF chunk dialog resizable and show prettified XML for XML chunk contents ([#557](https://github.com/cbrnr/mnelab/pull/557) by [Clemens Brunner](https://github.com/cbrnr))
 
+### ✨ Added
+- Add dialog for automatic epoch artifact detection with configurable methods and manual override ([#558](https://github.com/cbrnr/mnelab/pull/558) by [Fabian Schellander](https://github.com/SchellanderF))
+
 ## [1.1.0] - 2026-01-23
 ### ✨ Added
 - Add dialog to create annotations from events or between specific events ([#534](https://github.com/cbrnr/mnelab/pull/534) and [#539](https://github.com/cbrnr/mnelab/pull/539) by [Fabian Schellander](https://github.com/SchellanderF))
