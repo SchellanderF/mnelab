@@ -4,7 +4,7 @@
 
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.colors import to_rgba_array
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -40,20 +40,19 @@ class ArtifactDetectionDialog(QDialog):
     def __init__(self, parent, data):
         super().__init__(parent)
         self.setWindowTitle("Configure Artifact Detection")
-        self.setFixedSize(375, 230)
         self.detection_methods = {
             "Extreme values": {
                 "parameters": [
-                    ("threshold", None, 100.0, "µV")
-                ],  # (param_name, display_name, default, unit)
+                    ("threshold", None, 100.0, "µV", "±")
+                ],  # (param_name, display_name, default, unit, prefix)
                 "function": detect_extreme_values,
             },
             "Peak-to-peak": {
-                "parameters": [("ptp_threshold", None, 150.0, "µV")],
+                "parameters": [("ptp_threshold", None, 150.0, "µV", "")],
                 "function": detect_peak_to_peak,
             },
             "Kurtosis": {
-                "parameters": [("kurtosis", None, 5.0, "SD")],
+                "parameters": [("kurtosis", None, 5.0, "SD", "")],
                 "function": detect_kurtosis,
             },
         }
@@ -98,11 +97,14 @@ class ArtifactDetectionDialog(QDialog):
             param_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
             inputs = {}
-            for param_name, display_name, default, unit in details["parameters"]:
+            for param_name, display_name, default, unit, prefix in details[
+                "parameters"
+            ]:
                 spin_box = QDoubleSpinBox()
                 spin_box.setRange(-1e6, 1e6)
                 spin_box.setValue(default)
                 spin_box.setDecimals(1)
+                spin_box.setPrefix(prefix)
                 spin_box.setSuffix(f" {unit}")
                 spin_box.setAlignment(Qt.AlignmentFlag.AlignRight)
 
@@ -130,6 +132,10 @@ class ArtifactDetectionDialog(QDialog):
 
         self.info_label = QLabel("")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        metrics = self.info_label.fontMetrics()
+        max_text = "When pressing OK, 0000 out of 0000 epochs will be dropped."
+        required_width = metrics.horizontalAdvance(max_text)
+        self.info_label.setFixedWidth(required_width)
         layout.addWidget(self.info_label)
 
         button_layout = QHBoxLayout()
@@ -148,6 +154,8 @@ class ArtifactDetectionDialog(QDialog):
         self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
         button_layout.addWidget(self.button_box)
         layout.addLayout(button_layout)
+
+        self.setFixedSize(self.sizeHint())
 
     def get_selected_methods(self):
         """Return dict of selected methods and their parameters."""
@@ -560,18 +568,27 @@ class EpochVisualization(QDialog):
         if isinstance(fig, QWidget):
             # Qt-Backend
             fig.setParent(self)
-            layout.addWidget(fig)
             self.canvas = fig
+            fig.installEventFilter(self)
+            for child in fig.findChildren(QWidget):
+                child.installEventFilter(self)
         else:
             # Matplotlib-Backend
             self.canvas = FigureCanvas(self.fig)
-            layout.addWidget(self.canvas)
-
+            self.canvas.installEventFilter(self)
             self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             self.canvas.setFocus()
+
+        layout.addWidget(self.canvas)
 
     def closeEvent(self, event):
         if hasattr(self.fig, "mne") and hasattr(self.fig.mne, "bad_epochs"):
             self.flagged_epochs = list(self.fig.mne.bad_epochs)
 
         super().closeEvent(event)
+
+    def eventFilter(self, obj, event):
+        """Block ESC key to prevent MNE from dropping epochs on close."""
+        if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
+            return True
+        return super().eventFilter(obj, event)

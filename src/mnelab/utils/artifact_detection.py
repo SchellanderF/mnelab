@@ -12,7 +12,9 @@ from mnelab.utils.dependencies import have
 def detect_extreme_values(data, threshold):
     """Detect artifacts based on absolute amplitude threshold."""
     threshold_muV = threshold * 1e-6
-    bad_epochs = np.any(np.abs(data.get_data()) > threshold_muV, axis=(1, 2))
+    epochs_data = data.get_data()
+    epoch_mean = epochs_data.mean(axis=-1, keepdims=True)
+    bad_epochs = np.any(np.abs(epochs_data - epoch_mean) > threshold_muV, axis=(1, 2))
     return bad_epochs
 
 
