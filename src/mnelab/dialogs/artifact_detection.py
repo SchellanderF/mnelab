@@ -69,6 +69,7 @@ class ArtifactDetectionDialog(QDialog):
         self.method_widgets = {}
         self.data = data
         self.detection_done = False
+        self.pending_methods = set()
 
         # timer for debouncing detection runs
         self.detection_timer = QTimer()
@@ -170,11 +171,13 @@ class ArtifactDetectionDialog(QDialog):
             self.preview_button.setEnabled(False)
             self.button_box.button(QDialogButtonBox.Ok).setEnabled(False)
             self.detection_timer.stop()
+            self.pending_methods.clear()
             return
 
         self.info_label.setText("Detecting artifacts...")
 
-        self.changed_method = changed_method
+        if changed_method is not None:
+            self.pending_methods.add(changed_method)
 
         # 500ms debounce
         self.detection_timer.stop()
@@ -187,11 +190,7 @@ class ArtifactDetectionDialog(QDialog):
             return
 
         n_total = len(self.detection_results)
-        n_rejected = sum(
-            1
-            for results in self.detection_results.values()
-            if results.get("reject", False)
-        )
+        n_rejected = len(self.get_bad_epochs())
 
         # update label
         self.info_label.setText(
@@ -209,19 +208,21 @@ class ArtifactDetectionDialog(QDialog):
         selected = self.get_selected_methods()
         n_epochs = len(self.data)
 
-        # Initialize if first run
+        # initialize if first run
         if not self.detection_results:
             self.detection_results = {i: {} for i in range(n_epochs)}
 
-        # Determine which methods to run
-        if self.changed_method in selected:
-            methods_to_run = {self.changed_method: selected[self.changed_method]}
-        else:
-            methods_to_run = {}
-            # cleanup results for deselected method
-            for idx in range(n_epochs):
-                if self.changed_method in self.detection_results[idx]:
-                    del self.detection_results[idx][self.changed_method]
+        pending_methods = self.pending_methods.copy()
+        self.pending_methods.clear()
+
+        # determine which methods to run
+        methods_to_run = {m: selected[m] for m in pending_methods if m in selected}
+        methods_to_remove = {m for m in pending_methods if m not in selected}
+
+        # clean up results for deselected methods
+        for idx in range(n_epochs):
+            for method in methods_to_remove:
+                self.detection_results[idx].pop(method, None)
 
         # detection for relevant methods
         for method, params in methods_to_run.items():
@@ -244,7 +245,6 @@ class ArtifactDetectionDialog(QDialog):
         self.update_info_label()
         self.preview_button.setEnabled(True)
         self.button_box.button(QDialogButtonBox.Ok).setEnabled(True)
-        self.changed_method = None
 
     def show_preview_table(self):
         """Show preview table dialog."""
