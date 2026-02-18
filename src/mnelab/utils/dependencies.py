@@ -20,7 +20,6 @@ required = [
 ]
 optional = ["autoreject", "mne-qt-browser", "picard", "sklearn"]
 
-
 _distribution_names = {
     "python-picard": "picard",
     "scikit-learn": "sklearn",
