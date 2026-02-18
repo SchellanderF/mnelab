@@ -39,7 +39,7 @@ from mnelab.utils.dependencies import have
 class ArtifactDetectionDialog(QDialog):
     def __init__(self, parent, data):
         super().__init__(parent)
-        self.setWindowTitle("Configure Artifact Detection")
+        self.setWindowTitle("Artifact Detection")
         self.detection_methods = {
             "Extreme values": {
                 "parameters": [
