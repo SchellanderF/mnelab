@@ -28,10 +28,10 @@ from mnelab.dialogs.utils import (
     NumberSortProxyModel,
 )
 from mnelab.utils.artifact_detection import (
-    detect_extreme_values,
-    detect_kurtosis,
-    detect_peak_to_peak,
-    detect_with_autoreject,
+    find_bad_epochs_amplitude,
+    find_bad_epochs_autoreject,
+    find_bad_epochs_kurtosis,
+    find_bad_epochs_ptp,
 )
 from mnelab.utils.dependencies import have
 
@@ -43,24 +43,24 @@ class ArtifactDetectionDialog(QDialog):
         self.detection_methods = {
             "Extreme values": {
                 "parameters": [
-                    ("threshold", None, 100.0, "µV", "±")
+                    ("amplitude_threshold", None, 100.0, "µV", "±")
                 ],  # (param_name, display_name, default, unit, prefix)
-                "function": detect_extreme_values,
+                "function": find_bad_epochs_amplitude,
             },
             "Peak-to-peak": {
                 "parameters": [("ptp_threshold", None, 150.0, "µV", "")],
-                "function": detect_peak_to_peak,
+                "function": find_bad_epochs_ptp,
             },
             "Kurtosis": {
-                "parameters": [("kurtosis", None, 5.0, "SD", "")],
-                "function": detect_kurtosis,
+                "parameters": [("kurtosis_threshold", None, 5.0, "SD", "")],
+                "function": find_bad_epochs_kurtosis,
             },
         }
 
         if have.get("autoreject", False):
             self.detection_methods["AutoReject"] = {
                 "parameters": [],
-                "function": detect_with_autoreject,
+                "function": find_bad_epochs_autoreject,
             }
 
         # structure: {epoch_idx: {"method_name": bool, "reject": bool}}
@@ -115,7 +115,7 @@ class ArtifactDetectionDialog(QDialog):
                 else:
                     param_form.addRow(f"{display_name}:", spin_box)
 
-                inputs[param_name] = spin_box
+                inputs[param_name] = {"spinbox": spin_box, "unit": unit}
                 spin_box.valueChanged.connect(
                     lambda _, m=method: self.schedule_detection(m)
                 )
@@ -164,9 +164,14 @@ class ArtifactDetectionDialog(QDialog):
         results = {}
         for method, widgets in self.method_widgets.items():
             if widgets["checkbox"].isChecked():
-                results[method] = {
-                    name: spin.value() for name, spin in widgets["inputs"].items()
-                }
+                params = {}
+                for param_name, param_info in widgets["inputs"].items():
+                    value = param_info["spinbox"].value()
+                    # convert to V
+                    if param_info["unit"] == "µV":
+                        value *= 1e-6
+                    params[param_name] = value
+                results[method] = params
         return results
 
     def schedule_detection(self, changed_method=None):
