@@ -2,6 +2,7 @@
 #
 # License: BSD (3-clause)
 
+import mne
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.colors import to_rgba_array
 from PySide6.QtCore import QEvent, Qt, QTimer
@@ -470,42 +471,46 @@ class ArtifactPreviewTable(QDialog):
     def show_epoch_visualization(self):
         """Show epoch visualization from the preview table."""
 
-        self.sync_results_from_table()
+        with mne.utils.use_log_level(False):
+            self.sync_results_from_table()
 
-        flagged_idx = [
-            idx
-            for idx, results in self.detection_results.items()
-            if results.get("reject", False)
-        ]
+            flagged_idx = [
+                idx
+                for idx, results in self.detection_results.items()
+                if results.get("reject", False)
+            ]
 
-        fig = self.data.plot(scalings="auto", block=False, show=False)
+            fig = self.data.plot(scalings="auto", block=False, show=False)
 
-        # initialize bad_epochs attribute
-        fig.mne.bad_epochs = flagged_idx.copy()
+            # initialize bad_epochs attribute
+            fig.mne.bad_epochs = flagged_idx.copy()
 
-        if isinstance(fig, QWidget):  # Qt backend
-            fig.mne.epoch_color_ref[:, flagged_idx] = to_rgba_array(
-                fig.mne.epoch_color_bad
-            )
+            if isinstance(fig, QWidget):  # Qt backend
+                fig.mne.epoch_color_ref[:, flagged_idx] = to_rgba_array(
+                    fig.mne.epoch_color_bad
+                )
 
-            # update traces
-            for trace in fig.mne.traces:
-                trace.update_color()
+                # update traces
+                for trace in fig.mne.traces:
+                    trace.update_color()
 
-            fig._redraw(update_data=True)
-            # update bad epochs in hscroll bar
-            fig.mne.overview_bar.update_bad_epochs()
+                fig._redraw(update_data=True)
+                # update bad epochs in hscroll bar
+                fig.mne.overview_bar.update_bad_epochs()
 
-        else:  # Matplotlib backend
-            fig._redraw()
-            if hasattr(fig.mne.ax_hscroll, "patches"):
-                for idx in flagged_idx:
-                    fig.mne.ax_hscroll.patches[idx].set_color(fig.mne.epoch_color_bad)
+            else:  # Matplotlib backend
+                fig._redraw()
+                if hasattr(fig.mne.ax_hscroll, "patches"):
+                    for idx in flagged_idx:
+                        fig.mne.ax_hscroll.patches[idx].set_color(
+                            fig.mne.epoch_color_bad
+                        )
 
-        viz = EpochVisualization(self, fig)
-        self.setModal(True)
-        viz.finished.connect(lambda: self._update_from_visualization(viz))
-        viz.exec()
+            viz = EpochVisualization(self, fig)
+            self.setModal(True)
+            viz.finished.connect(lambda: self._update_from_visualization(viz))
+            viz.exec()
+            mne.set_log_level(True)
 
     def _update_from_visualization(self, viz):
         """Called when visualization window closes to update detection results."""
