@@ -27,8 +27,7 @@ def find_bad_epochs_amplitude(data, threshold):
     """
     epochs_data = data.get_data()
     epoch_mean = epochs_data.mean(axis=-1, keepdims=True)
-    bad_epochs = np.any(np.abs(epochs_data - epoch_mean) > threshold, axis=(1, 2))
-    return bad_epochs
+    return np.any(np.abs(epochs_data - epoch_mean) > threshold, axis=(1, 2))
 
 
 def find_bad_epochs_autoreject(data):
@@ -92,9 +91,7 @@ def find_bad_epochs_ptp(data, threshold):
         Boolean array where True indicates a bad epoch.
     """
     ptp_values = np.ptp(data.get_data(), axis=2)
-    bad_epochs = np.any(ptp_values > threshold, axis=1)
-
-    return bad_epochs
+    return np.any(ptp_values > threshold, axis=1)
 
 
 def find_bad_epochs_kurtosis(data, threshold):
@@ -119,6 +116,4 @@ def find_bad_epochs_kurtosis(data, threshold):
     kurt_std = np.std(kurt_values, axis=0)
 
     z_scores = np.abs((kurt_values - kurt_mean) / (kurt_std + 1e-10))
-    bad_epochs = np.any(z_scores > threshold, axis=1)
-
-    return bad_epochs
+    return np.any(z_scores > threshold, axis=1)
