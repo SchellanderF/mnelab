@@ -23,10 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from mnelab.dialogs.utils import (
-    CheckBoxDelegate,
-    NumberSortProxyModel,
-)
+from mnelab.dialogs.utils import CheckBoxDelegate, NumberSortProxyModel
 from mnelab.utils import (
     find_bad_epochs_amplitude,
     find_bad_epochs_autoreject,
@@ -57,7 +54,7 @@ class ArtifactDetectionDialog(QDialog):
             },
         }
 
-        if have.get("autoreject", False):
+        if have["autoreject"]:
             self.detection_methods["AutoReject"] = {
                 "parameters": [],
                 "function": find_bad_epochs_autoreject,
@@ -456,7 +453,7 @@ class ArtifactPreviewTable(QDialog):
         self.table_view.sortByColumn(0, Qt.SortOrder.AscendingOrder)
 
     def update_info_label(self):
-        """Update label showing rejection statistics"""
+        """Update label showing rejection statistics."""
         n_total = self.model.rowCount()
         n_rejected = 0
         for row in range(n_total):
@@ -486,8 +483,7 @@ class ArtifactPreviewTable(QDialog):
         # initialize bad_epochs attribute
         fig.mne.bad_epochs = flagged_idx.copy()
 
-        if isinstance(fig, QWidget):
-            # Qt-Backend
+        if isinstance(fig, QWidget):  # Qt backend
             fig.mne.epoch_color_ref[:, flagged_idx] = to_rgba_array(
                 fig.mne.epoch_color_bad
             )
@@ -500,8 +496,7 @@ class ArtifactPreviewTable(QDialog):
             # update bad epochs in hscroll bar
             fig.mne.overview_bar.update_bad_epochs()
 
-        else:
-            # Matplotlib Backend
+        else:  # Matplotlib backend
             fig._redraw()
             if hasattr(fig.mne.ax_hscroll, "patches"):
                 for idx in flagged_idx:
@@ -570,14 +565,14 @@ class EpochVisualization(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
 
         if isinstance(fig, QWidget):
-            # Qt-Backend
+            # Qt backend
             fig.setParent(self)
             self.canvas = fig
             fig.installEventFilter(self)
             for child in fig.findChildren(QWidget):
                 child.installEventFilter(self)
         else:
-            # Matplotlib-Backend
+            # Matplotlib backend
             self.canvas = FigureCanvas(self.fig)
             self.canvas.installEventFilter(self)
             self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -592,7 +587,7 @@ class EpochVisualization(QDialog):
         super().closeEvent(event)
 
     def eventFilter(self, obj, event):
-        """Block ESC key to prevent MNE from dropping epochs on close."""
+        """Block Escape key to prevent MNE from dropping epochs on close."""
         if event.type() == QEvent.Type.KeyPress and event.key() == Qt.Key.Key_Escape:
             return True
         return super().eventFilter(obj, event)
