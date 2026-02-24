@@ -52,7 +52,7 @@ def find_bad_epochs_autoreject(data):
 
     from autoreject import get_rejection_threshold
 
-    reject_dict = get_rejection_threshold(data, decim=2)
+    reject_dict = get_rejection_threshold(data, decim=2, verbose=False)
     epoch_data = data.get_data()
     bad_epochs = np.zeros(len(data), dtype=bool)
     for ch_type, threshold in reject_dict.items():
