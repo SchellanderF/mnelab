@@ -27,7 +27,7 @@ from mnelab.dialogs.utils import (
     CheckBoxDelegate,
     NumberSortProxyModel,
 )
-from mnelab.utils.artifact_detection import (
+from mnelab.utils import (
     find_bad_epochs_amplitude,
     find_bad_epochs_autoreject,
     find_bad_epochs_kurtosis,
@@ -43,16 +43,16 @@ class ArtifactDetectionDialog(QDialog):
         self.detection_methods = {
             "Extreme values": {
                 "parameters": [
-                    ("amplitude_threshold", None, 100.0, "µV", "±")
+                    ("threshold", None, 100.0, "µV", "±")
                 ],  # (param_name, display_name, default, unit, prefix)
                 "function": find_bad_epochs_amplitude,
             },
             "Peak-to-peak": {
-                "parameters": [("ptp_threshold", None, 150.0, "µV", "")],
+                "parameters": [("threshold", None, 150.0, "µV", "")],
                 "function": find_bad_epochs_ptp,
             },
             "Kurtosis": {
-                "parameters": [("kurtosis_threshold", None, 5.0, "SD", "")],
+                "parameters": [("threshold", None, 5.0, "SD", "")],
                 "function": find_bad_epochs_kurtosis,
             },
         }

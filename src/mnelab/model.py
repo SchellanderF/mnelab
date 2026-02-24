@@ -57,7 +57,7 @@ class Model:
             "from mnelab.io import read_raw",
             "from mnelab.utils import annotations_between_events, run_iclabel",
             "import numpy as np",
-            "from mnelab.utils.artifact_detection import ("
+            "from mnelab.utils import ("
             "detect_extreme_values,"
             "detect_kurtosis,"
             "detect_peak_to_peak,"

@@ -1339,7 +1339,6 @@ class MainWindow(QMainWindow):
 
     def artifact_detection(self):
         """Apply artifact detection."""
-
         data = self.model.current["data"]
 
         dialog = ArtifactDetectionDialog(self, data)
