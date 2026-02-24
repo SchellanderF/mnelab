@@ -27,9 +27,7 @@ def find_bad_epochs_amplitude(data, threshold):
     """
     epochs_data = data.get_data()
     epoch_mean = epochs_data.mean(axis=-1, keepdims=True)
-    bad_epochs = np.any(
-        np.abs(epochs_data - epoch_mean) > threshold, axis=(1, 2)
-    )
+    bad_epochs = np.any(np.abs(epochs_data - epoch_mean) > threshold, axis=(1, 2))
     return bad_epochs
 
 
