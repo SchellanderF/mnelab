@@ -74,6 +74,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("MNELAB")
         sys.excepthook = self._excepthook
 
+        # supress MNE logging output
+        mne.set_log_level("ERROR")
+
         # restore settings
         settings = read_settings()
         self.recent = settings["recent"]  # list of recent files
