@@ -16,39 +16,29 @@ from mnelab.utils.artifact_detection import (
 @pytest.fixture
 def clean_epochs():
     """Create clean EpochsArray for testing."""
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
     n_epochs = 30
     n_channels = 3
     n_times = 100
     sfreq = 100
-    data = np.random.randn(n_epochs, n_channels, n_times) * 1e-6
+    data = rng.standard_normal((n_epochs, n_channels, n_times)) * 1e-6
     info = mne.create_info(
         ch_names=[f"Ch{i}" for i in range(n_channels)], sfreq=sfreq, ch_types="eeg"
     )
     return mne.EpochsArray(data, info)
 
 
-def create_expected_bad_epochs(n_epochs, bad_indices):
-    """Create expected boolean array of bad epochs."""
-    expected = np.zeros(n_epochs, dtype=bool)
-    expected[bad_indices] = True
-
-    return expected
-
-
 @pytest.mark.parametrize(
-    "detection_func,threshold_param,threshold_value",
+    "detection_func,threshold",
     [
-        (find_bad_epochs_amplitude, "threshold", 100e-6),
-        (find_bad_epochs_ptp, "threshold", 100e-6),
-        (find_bad_epochs_kurtosis, "threshold", 5.0),
+        (find_bad_epochs_amplitude, 100e-6),
+        (find_bad_epochs_ptp, 100e-6),
+        (find_bad_epochs_kurtosis, 5.0),
     ],
 )
-def test_no_artifacts_detected(
-    clean_epochs, detection_func, threshold_param, threshold_value
-):
+def test_no_artifacts_detected(clean_epochs, detection_func, threshold):
     """Test that clean data with high thresholds produces no bad epochs."""
-    bad_epochs = detection_func(clean_epochs, **{threshold_param: threshold_value})
+    bad_epochs = detection_func(clean_epochs, threshold=threshold)
 
     assert bad_epochs.shape == (30,)
     assert bad_epochs.dtype == bool
@@ -63,9 +53,7 @@ def test_find_bad_epochs_amplitude(clean_epochs):
     epochs = mne.EpochsArray(epochs_data, clean_epochs.info)
 
     bad_epochs = find_bad_epochs_amplitude(epochs, threshold=100e-6)
-    expected = create_expected_bad_epochs(n_epochs=30, bad_indices=bad_idx)
-
-    np.testing.assert_array_equal(bad_epochs, expected)
+    np.testing.assert_array_equal(np.where(bad_epochs)[0], bad_idx)
 
 
 def test_find_bad_epochs_ptp(clean_epochs):
@@ -77,9 +65,7 @@ def test_find_bad_epochs_ptp(clean_epochs):
     epochs = mne.EpochsArray(epochs_data, clean_epochs.info)
 
     bad_epochs = find_bad_epochs_ptp(epochs, threshold=150e-6)
-    expected = create_expected_bad_epochs(n_epochs=30, bad_indices=bad_idx)
-
-    np.testing.assert_array_equal(bad_epochs, expected)
+    np.testing.assert_array_equal(np.where(bad_epochs)[0], bad_idx)
 
 
 def test_find_bad_epochs_kurtosis(clean_epochs):
@@ -94,6 +80,4 @@ def test_find_bad_epochs_kurtosis(clean_epochs):
     epochs = mne.EpochsArray(epochs_data, clean_epochs.info)
 
     bad_epochs = find_bad_epochs_kurtosis(epochs, threshold=3.0)
-    expected = create_expected_bad_epochs(n_epochs=30, bad_indices=bad_idx)
-
-    np.testing.assert_array_equal(bad_epochs, expected)
+    np.testing.assert_array_equal(np.where(bad_epochs)[0], bad_idx)
